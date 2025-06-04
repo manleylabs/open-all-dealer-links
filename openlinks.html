@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Open All Links</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    input[type='text'] {
+      width: 70%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    label {
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Open All Links from a Specific Section</h2>
+  <input type="text" id="urlInput" placeholder="Enter a webpage URL..." />
+  <button onclick="openLinks()">Open All Links</button>
+  <label>
+    <input type="checkbox" id="externalOnly" /> External Links Only
+  </label>
+
+  <script>
+    async function openLinks() {
+      const url = document.getElementById('urlInput').value;
+      const externalOnly = document.getElementById('externalOnly').checked;
+      if (!url) return alert('Please enter a URL.');
+
+      try {
+        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        const res = await fetch(proxyUrl);
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const base = new URL(url);
+
+        // Scoped section: only links inside this specific block
+        const scope = doc.querySelector('.sqs-block.embed-block.sqs-block-embed');
+        const anchors = scope ? [...scope.querySelectorAll('a')] : [];
+
+        const hrefs = new Set();
+
+        anchors.forEach(a => {
+          let href = a.getAttribute('href');
+          if (!href || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return;
+          try {
+            const link = new URL(href, base);
+            if (externalOnly && link.hostname === base.hostname) return;
+            hrefs.add(link.href);
+          } catch (e) {
+            // Skip invalid URLs
+          }
+        });
+
+        if (hrefs.size === 0) {
+          alert('No links found in the specified section.');
+        }
+
+        hrefs.forEach(link => window.open(link, '_blank'));
+      } catch (err) {
+        alert('Error fetching or parsing the webpage.');
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
